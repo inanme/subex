@@ -1,0 +1,20 @@
+[
+  {
+    "keys": [
+      "super+enter"
+    ],
+    "command": "echo",
+    "args": {
+      "output": "panel"
+    }
+  },
+  {
+    "keys": [
+      "super+alt+enter"
+    ],
+    "command": "echo",
+    "args": {
+      "output": "file"
+    }
+  }
+]
