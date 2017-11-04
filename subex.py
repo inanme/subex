@@ -6,6 +6,7 @@ from datetime import datetime
 
 from . import call_cmd
 
+line_break = "-" * 80 + "\n"
 first_cap_re = re.compile('(.)([A-Z][a-z]+)')
 all_cap_re = re.compile('([a-z0-9])([A-Z])')
 executor = call_cmd.Executor()
@@ -81,9 +82,6 @@ def echo_current_line_in_view(view, window):
         window.focus_view(view)
 
 
-line_break = "-" * 80 + "\n"
-
-
 class OutputHandler:
     def __init__(self, command, view, window):
         self.command = command
@@ -116,19 +114,19 @@ def execute_current_line_in_view(view, window):
         window.focus_view(view)
 
 
-# class EchoCommand(sublime_plugin.TextCommand):
-#     cmd_name = to_snake_case('EchoCommand')
-#     pnl_name = 'output.' + cmd_name
-#     vw_name = 'Subex Output'
-#
-#     def run(self, edit, output=None):
-#         view, window = get_active_view_and_window()
-#         if output == 'panel':
-#             echo_current_line_in_panel(view, window)
-#         elif output == 'file':
-#             echo_current_line_in_view(view, window)
-#         else:
-#             pass
+class EchoCommand(sublime_plugin.TextCommand):
+    cmd_name = to_snake_case('EchoCommand')
+    pnl_name = 'output.' + cmd_name
+    vw_name = 'Subex Output'
+
+    def run(self, edit, output=None):
+        view, window = get_active_view_and_window()
+        if output == 'panel':
+            echo_current_line_in_panel(view, window)
+        elif output == 'file':
+            echo_current_line_in_view(view, window)
+        else:
+            pass
 
 
 class MyShellCommand(sublime_plugin.TextCommand):
