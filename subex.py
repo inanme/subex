@@ -87,18 +87,14 @@ class OutputHandler:
         self.command = command
         self.view = view
         self.window = window
-        self.first_output = True
+        self.view.run_command('insert', {'characters': line_break,
+                                         'force': False,
+                                         'scroll_to_end': True})
+        self.view.run_command('insert', {'characters': decorate_string(self.command),
+                                         'force': False,
+                                         'scroll_to_end': True})
 
     def process(self, output):
-        if self.first_output:
-            self.view.run_command('insert', {'characters': line_break,
-                                             'force': False,
-                                             'scroll_to_end': True})
-            self.view.run_command('insert', {'characters': decorate_string(self.command),
-                                             'force': False,
-                                             'scroll_to_end': True})
-            self.first_output = False
-
         self.view.run_command('insert', {'characters': output,
                                          'force': False,
                                          'scroll_to_end': True})

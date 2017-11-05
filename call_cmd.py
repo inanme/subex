@@ -1,7 +1,6 @@
-from subprocess import Popen, CalledProcessError, PIPE, STDOUT, TimeoutExpired
+from subprocess import Popen, CalledProcessError, PIPE, STDOUT
 from threading import Thread
 from queue import Queue, Empty
-from time import sleep
 from select import select
 from datetime import datetime
 
@@ -74,6 +73,8 @@ class Executor:
         finally:
             self.commands.task_done()
 
+
+# from time import sleep
 # c = Executor()
 # c.start()
 # c.async_execute_string("ls", lambda output: print("1>>>" + output))
