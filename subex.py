@@ -11,6 +11,9 @@ first_cap_re = re.compile('(.)([A-Z][a-z]+)')
 all_cap_re = re.compile('([a-z0-9])([A-Z])')
 executor = call_cmd.Executor()
 
+CMD_OUT_VIEW_NAME = 'Subex Output'
+DIAG_OUT_VIEW_NAME = 'Subex Diagnostic Output'
+
 
 def main_thread(callback, *args, **kwargs):
     sublime.set_timeout_async(functools.partial(callback, *args, **kwargs), 0)
@@ -34,12 +37,12 @@ def column2(window):
     })
 
 
-def new_file(window, name):
+def new_file(window, name, group, index):
     if window.num_groups() < 2:
         column2(window)
     output_view = window.new_file()
     output_view.set_name(name)
-    window.set_view_index(output_view, 1, 0)
+    window.set_view_index(output_view, group, index)
     return output_view
 
 
@@ -74,8 +77,8 @@ def echo_current_line_in_panel(view, window):
 def echo_current_line_in_view(view, window):
     current_line = get_active_view_line(view, window)
     if current_line is not None:
-        existing_view = [view for view in window.views() if view.name() == EchoCommand.vw_name]
-        output_view = existing_view[0] if existing_view else new_file(window, EchoCommand.vw_name)
+        existing_view = [view for view in window.views() if view.name() == CMD_OUT_VIEW_NAME]
+        output_view = existing_view[0] if existing_view else new_file(window, CMD_OUT_VIEW_NAME, 1, 0)
         output_view.run_command('insert', {'characters': decorate_string(current_line),
                                            'force': False,
                                            'scroll_to_end': True})
@@ -85,25 +88,45 @@ def echo_current_line_in_view(view, window):
 # http://docs.sublimetext.info/en/latest/reference/commands.html
 
 class OutputHandler:
-    def __init__(self, command, view, window):
+    def __init__(self, command, out_view, diag_view, window):
         self.command = command
-        self.view = view
+        self.out_view = out_view
+        self.diag_view = diag_view
         self.window = window
-        self.view.run_command('append', {'characters': line_break})
-        self.view.run_command('append', {'characters': decorate_string(self.command)})
-        self.view.run_command('move_to', {'to': 'eof'})
+        self.first_output = True
+        self.kubectl_get_pod = False
+        for view in [out_view, diag_view]:
+            view.run_command('append', {'characters': line_break})
+            view.run_command('append', {'characters': decorate_string(self.command)})
+        if "kubectlgetpod" in re.sub('\s+', '', self.command):
+            self.kubectl_get_pod_namespace = re.sub('\s*kubectl\s+get\s+pod\s+', '', self.command)
+            self.kubectl_get_pod = True
 
     def process(self, output):
-        self.view.run_command('append', {'characters': output})
-        self.view.run_command('move_to', {'to': 'eof'})
+        self.out_view.run_command('append', {'characters': output})
+        self.out_view.run_command('move_to', {'to': 'eof'})
+        if self.first_output:
+            self.first_output = False
+        elif self.kubectl_get_pod:
+            output_array = re.split('\s+', output)
+            if output_array:
+                pod = output_array[0]
+                pod_log_cmd = "kubectl log -f {} {}\n".format(pod, self.kubectl_get_pod_namespace)
+                pod_yaml_cmd = "kubectl get pod {} {} -o yaml\n\n".format(pod, self.kubectl_get_pod_namespace)
+                self.diag_view.run_command('append', {'characters': pod_log_cmd + pod_yaml_cmd})
+                self.diag_view.run_command('move_to', {'to': 'eof'})
 
 
 def execute_current_line_in_view(view, window):
     current_line = get_active_view_line(view, window)
     if current_line is not None:
-        existing_view = [view for view in window.views() if view.name() == EchoCommand.vw_name]
-        output_view = existing_view[0] if existing_view else new_file(window, EchoCommand.vw_name)
-        output_handler = OutputHandler(current_line, output_view, window)
+        existing_cmd_view = [view for view in window.views() if view.name() == CMD_OUT_VIEW_NAME]
+        cmd_out_view = existing_cmd_view[0] if existing_cmd_view else new_file(window, CMD_OUT_VIEW_NAME, 1, 0)
+
+        existing_dia_view = [view for view in window.views() if view.name() == DIAG_OUT_VIEW_NAME]
+        dia_out_view = existing_dia_view[0] if existing_dia_view else new_file(window, DIAG_OUT_VIEW_NAME, 1, 1)
+
+        output_handler = OutputHandler(current_line, cmd_out_view, dia_out_view, window)
         executor.async_execute_string(current_line, output_handler.process)
         window.focus_view(view)
 
@@ -111,7 +134,6 @@ def execute_current_line_in_view(view, window):
 class EchoCommand(sublime_plugin.TextCommand):
     cmd_name = to_snake_case('EchoCommand')
     pnl_name = 'output.' + cmd_name
-    vw_name = 'Subex Output'
 
     def run(self, edit, output=None):
         view, window = get_active_view_and_window()
