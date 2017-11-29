@@ -82,22 +82,20 @@ def echo_current_line_in_view(view, window):
         window.focus_view(view)
 
 
+# http://docs.sublimetext.info/en/latest/reference/commands.html
+
 class OutputHandler:
     def __init__(self, command, view, window):
         self.command = command
         self.view = view
         self.window = window
-        self.view.run_command('insert', {'characters': line_break,
-                                         'force': False,
-                                         'scroll_to_end': True})
-        self.view.run_command('insert', {'characters': decorate_string(self.command),
-                                         'force': False,
-                                         'scroll_to_end': True})
+        self.view.run_command('append', {'characters': line_break})
+        self.view.run_command('append', {'characters': decorate_string(self.command)})
+        self.view.run_command('move_to', {'to': 'eof'})
 
     def process(self, output):
-        self.view.run_command('insert', {'characters': output,
-                                         'force': False,
-                                         'scroll_to_end': True})
+        self.view.run_command('append', {'characters': output})
+        self.view.run_command('move_to', {'to': 'eof'})
 
 
 def execute_current_line_in_view(view, window):
