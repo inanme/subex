@@ -99,7 +99,7 @@ class OutputHandler:
             view.run_command('append', {'characters': line_break})
             view.run_command('append', {'characters': decorate_string(self.command)})
         if "kubectlgetpod" in re.sub('\s+', '', self.command):
-            self.kubectl_get_pod_namespace = re.sub('\s*kubectl\s+get\s+pod\s+', '', self.command)
+            self.kubectl_get_pod_namespace = re.sub('\s*kubectl\s+get\s+pods?\s+', '', self.command)
             self.kubectl_get_pod = True
 
     def process(self, output):
@@ -111,7 +111,7 @@ class OutputHandler:
             output_array = re.split('\s+', output)
             if output_array:
                 pod = output_array[0]
-                pod_log_cmd = "kubectl log -f {} {}\n".format(pod, self.kubectl_get_pod_namespace)
+                pod_log_cmd = "kubectl logs -f {} {}\n".format(pod, self.kubectl_get_pod_namespace)
                 pod_yaml_cmd = "kubectl get pod {} {} -o yaml\n\n".format(pod, self.kubectl_get_pod_namespace)
                 self.diag_view.run_command('append', {'characters': pod_log_cmd + pod_yaml_cmd})
                 self.diag_view.run_command('move_to', {'to': 'eof'})
