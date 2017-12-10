@@ -29,17 +29,27 @@ def decorate_string(string):
     return "{} - {} \n".format(now, string)
 
 
-def column2(window):
+# cols is an array of values between 0 and 1 that represent the proportional position of each column break
+# rows is the same as cols
+# cells is an array of arrays, each inner array contains [x1,y1,x2,y2] coordinates of the cell
+# https://forum.sublimetext.com/t/set-layout-reference/5713
+def set_layout(window):
     window.run_command('set_layout', {
         'cols': [0.0, 0.5, 1.0],
-        'rows': [0.0, 1.0],
-        'cells': [[0, 0, 1, 1], [1, 0, 2, 1]]
+        'rows': [0.0, 0.5, 1.0],
+        'cells': [[0, 0, 1, 2], [1, 0, 2, 1], [1, 1, 2, 2]]
     })
 
 
+def erase(view):
+    # some_view.erase(edit, sublime.Region(0, some_view.size())
+    view.run_command("select_all")
+    view.run_command("right_delete")
+
+
 def new_file(window, name, group, index):
-    if window.num_groups() < 2:
-        column2(window)
+    if window.num_groups() < 3:
+        set_layout(window)
     output_view = window.new_file()
     output_view.set_name(name)
     window.set_view_index(output_view, group, index)
@@ -112,23 +122,34 @@ class OutputHandler:
             if output_array:
                 pod = output_array[0]
                 pod_log_cmd = "kubectl logs -f {} {}\n".format(pod, self.kubectl_get_pod_namespace)
+                pod_del_cmd = "kubectl delete pod {} {}\n".format(pod, self.kubectl_get_pod_namespace)
                 pod_yaml_cmd = "kubectl get pod {} {} -o yaml\n\n".format(pod, self.kubectl_get_pod_namespace)
-                self.diag_view.run_command('append', {'characters': pod_log_cmd + pod_yaml_cmd})
+                self.diag_view.run_command('append', {'characters': pod_log_cmd + pod_del_cmd + pod_yaml_cmd})
                 self.diag_view.run_command('move_to', {'to': 'eof'})
 
 
 def execute_current_line_in_view(view, window):
     current_line = get_active_view_line(view, window)
+
+    existing_cmd_view = [view for view in window.views() if view.name() == CMD_OUT_VIEW_NAME]
+    cmd_out_view = existing_cmd_view[0] if existing_cmd_view else new_file(window, CMD_OUT_VIEW_NAME, 1, 0)
+
+    existing_dia_view = [view for view in window.views() if view.name() == DIAG_OUT_VIEW_NAME]
+    dia_out_view = existing_dia_view[0] if existing_dia_view else new_file(window, DIAG_OUT_VIEW_NAME, 2, 0)
+
     if current_line is not None:
-        existing_cmd_view = [view for view in window.views() if view.name() == CMD_OUT_VIEW_NAME]
-        cmd_out_view = existing_cmd_view[0] if existing_cmd_view else new_file(window, CMD_OUT_VIEW_NAME, 1, 0)
-
-        existing_dia_view = [view for view in window.views() if view.name() == DIAG_OUT_VIEW_NAME]
-        dia_out_view = existing_dia_view[0] if existing_dia_view else new_file(window, DIAG_OUT_VIEW_NAME, 1, 1)
-
-        output_handler = OutputHandler(current_line, cmd_out_view, dia_out_view, window)
-        executor.async_execute_string(current_line, output_handler.process)
-        window.focus_view(view)
+        if "__clear__" in current_line:
+            print('Will clear both')
+            erase(cmd_out_view)
+            erase(dia_out_view)
+        elif "__clear1__" in current_line:
+            erase(cmd_out_view)
+        elif "__clear2__" in current_line:
+            erase(dia_out_view)
+        else:
+            output_handler = OutputHandler(current_line, cmd_out_view, dia_out_view, window)
+            executor.async_execute_string(current_line, output_handler.process)
+            window.focus_view(view)
 
 
 class EchoCommand(sublime_plugin.TextCommand):
