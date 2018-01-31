@@ -123,8 +123,10 @@ class OutputHandler:
                 pod = output_array[0]
                 pod_log_cmd = "kubectl logs -f {} {}\n".format(pod, self.kubectl_get_pod_namespace)
                 pod_del_cmd = "kubectl delete pod {} {}\n".format(pod, self.kubectl_get_pod_namespace)
+                pod_desc_cmd = "kubectl describe pod {} {}\n".format(pod, self.kubectl_get_pod_namespace)
+                pod_sh_cmd = "kubectl exec -it {} bash {}\n".format(pod, self.kubectl_get_pod_namespace)
                 pod_yaml_cmd = "kubectl get pod {} {} -o yaml\n\n".format(pod, self.kubectl_get_pod_namespace)
-                self.diag_view.run_command('append', {'characters': pod_log_cmd + pod_del_cmd + pod_yaml_cmd})
+                self.diag_view.run_command('append', {'characters': pod_log_cmd + pod_del_cmd + pod_desc_cmd + pod_sh_cmd + pod_yaml_cmd })
                 self.diag_view.run_command('move_to', {'to': 'eof'})
 
 
