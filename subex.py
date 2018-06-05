@@ -152,28 +152,31 @@ class OutputHandler:
                 self.diag_view.run_command('move_to', {'to': 'eof'})
 
 
-def execute_current_line_in_view(view, window):
-    current_line = get_active_view_line(view, window)
-
+def get_cmd_dia_views(_, window):
     existing_cmd_view = [view for view in window.views() if view.name() == CMD_OUT_VIEW_NAME]
     cmd_out_view = existing_cmd_view[0] if existing_cmd_view else new_file(window, CMD_OUT_VIEW_NAME, 1, 0)
 
     existing_dia_view = [view for view in window.views() if view.name() == DIAG_OUT_VIEW_NAME]
     dia_out_view = existing_dia_view[0] if existing_dia_view else new_file(window, DIAG_OUT_VIEW_NAME, 2, 0)
 
-    if current_line is not None:
-        if "__clear__" in current_line:
-            print('Will clear both')
-            erase(cmd_out_view)
-            erase(dia_out_view)
-        elif "__clear1__" in current_line:
-            erase(cmd_out_view)
-        elif "__clear2__" in current_line:
-            erase(dia_out_view)
-        else:
-            output_handler = OutputHandler(current_line, cmd_out_view, dia_out_view, window)
-            executor.async_execute_string(current_line, output_handler.process)
-            window.focus_view(view)
+    return cmd_out_view, dia_out_view
+
+
+def execute_current_line_in_view(view, window, current_line):
+    cmd_out_view, dia_out_view = get_cmd_dia_views(view, window)
+
+    if "__clear__" in current_line:
+        print('Will clear both')
+        erase(cmd_out_view)
+        erase(dia_out_view)
+    elif "__clear1__" in current_line:
+        erase(cmd_out_view)
+    elif "__clear2__" in current_line:
+        erase(dia_out_view)
+    else:
+        output_handler = OutputHandler(current_line, cmd_out_view, dia_out_view, window)
+        executor.async_execute_string(current_line, output_handler.process)
+        window.focus_view(view)
 
 
 class EchoCommand(sublime_plugin.TextCommand):
@@ -190,26 +193,34 @@ class EchoCommand(sublime_plugin.TextCommand):
             pass
 
 
+def to_epoc(numeric_word):
+    if len(numeric_word) == 10:
+        return datetime.utcfromtimestamp(float(numeric_word)).strftime(fmt)
+    elif len(numeric_word) == 13:
+        return datetime.utcfromtimestamp(float(numeric_word) / 1000).strftime(fmt)
+    elif len(numeric_word) == 16:
+        return datetime.utcfromtimestamp(float(numeric_word) / 1000000).strftime(fmt)
+    return None
+
+
 class MyShellCommand(sublime_plugin.TextCommand):
     executor.start()
 
     def run(self, edit, output=None):
         view, window = get_active_view_and_window()
-        if output == 'file':
-            execute_current_line_in_view(view, window)
-
-
-class MyEpoc(sublime_plugin.TextCommand):
-    def run(self, edit, output=None):
-        view, window = get_active_view_and_window()
+        cmd_out_view, dia_out_view = get_cmd_dia_views(view, window)
+        current_line = get_active_view_line(view, window)
         word = get_active_view_word(view, window)
         selected = get_active_view_selected(view, window)
         if word is not None and word.isnumeric():
-            if len(word) == 10:
-                print(datetime.utcfromtimestamp(float(word)).strftime(fmt))
-            elif len(word) == 13:
-                print(datetime.utcfromtimestamp(float(word) / 1000).strftime(fmt))
-            elif len(word) == 16:
-                print(datetime.utcfromtimestamp(float(word) / 1000000).strftime(fmt))
+            if to_epoc(word) is not None:
+                cmd_out_view.run_command('append', {'characters': "{} - {}\n".format(word, to_epoc(word))})
+                cmd_out_view.run_command('move_to', {'to': 'eof'})
+            return
         if selected is not None:
-            print(datetime.strptime(selected, fmt).timestamp())
+            cmd_out_view.run_command('append', {'characters': "{} - {}\n".format(selected, datetime.strptime(selected, fmt).timestamp())})
+            cmd_out_view.run_command('move_to', {'to': 'eof'})
+            return
+        if output == 'file' and current_line is not None:
+            execute_current_line_in_view(view, window, current_line)
+            return

@@ -7,13 +7,5 @@
     "args": {
       "output": "file"
     }
-  },
-  {
-    "keys": [
-      "f1"
-    ],
-    "command": "my_epoc",
-    "args": {
-    }
   }
 ]
