@@ -1,0 +1,41 @@
+self.window.set_layout({
+"cols": [0.0, 0.5, 1.0],
+"rows": [0.0, 0.25, 0.75, 1.0],
+"cells": [0, 0, 1, 2], [1, 0, 2, 1], [0, 2, 1, 3], [1, 1, 2, 3]]
+})
+
+cols is an array of values between 0 and 1 that represent the proportional position of each column break
+
+rows is the same as cols
+
+cells is an array of arrays, each inner array contains [x1,y1,x2,y2] coordinates of the cell
+
+It is important to note that we are defining 3 rows (by specifying 4 breaks). Even though we only want 4 cells total, we require the cells to be different heights
+
+             0.0                             0.5                           1.0
+          +------------------------------->;+---------------------------->
+             0,0                            1,0                             2,0
+  0.0+    +-------------------------------+-----------------------------+
+     |    |                               |                             |
+     |    |                               |                             |
+     |    |                               |                             |
+     |    |                               |                             |
+     |    |                               |                             |
+     |    |                               |                             |
+     |    |                               |                             |
+     v    |                              1,1                           2,1
+ 0.25+    |                               +-----------------------------+
+     |    |                               |                             |
+     |    |                               |                             |
+     |    |                               |                             |
+     |    |                               |                             |
+     |    |                               |                             |
+     |    |                               |                             |
+     |    |                               |                             |
+     |  0,2                              1,2                            |
+     v    +-------------------------------+                             |
+ 0.75+    |                               |                             |
+     |    |                               |                             |
+     |    |                               |                             |
+     |   0,3                             1,3                           2,3
+  1.0v    +-------------------------------+-----------------------------+

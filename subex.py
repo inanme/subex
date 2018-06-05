@@ -14,6 +14,7 @@ first_cap_re = re.compile('(.)([A-Z][a-z]+)')
 all_cap_re = re.compile('([a-z0-9])([A-Z])')
 executor = call_cmd.Executor()
 
+INFO_PANEL_NAME = 'SubexInfoPanel'
 CMD_OUT_VIEW_NAME = 'Subex Output'
 DIAG_OUT_VIEW_NAME = 'Subex Diagnostic Output'
 
@@ -92,17 +93,15 @@ def get_active_view_selected(view, _):
     return view.substr(region) if region else None
 
 
-def echo_current_line_in_panel(view, window):
-    current_line = get_active_view_line(view, window)
-    if current_line is not None:
-        existing_panel = window.find_output_panel(EchoCommand.cmd_name)
-        panel = existing_panel if existing_panel is not None else window.create_output_panel(EchoCommand.cmd_name)
-        window.run_command('show_panel', {'panel': EchoCommand.pnl_name})
-        panel_settings = panel.settings()
-        panel_settings.set('EchoCommand', True)
-        panel.run_command('insert', {'characters': decorate_string(current_line),
-                                     'force': False,
-                                     'scroll_to_end': True})
+def show_in_panel(_, window, text):
+    existing_panel = window.find_output_panel(INFO_PANEL_NAME)
+    panel = existing_panel if existing_panel is not None else window.create_output_panel(INFO_PANEL_NAME)
+    window.run_command('show_panel', {'panel': 'output.' + INFO_PANEL_NAME})
+    panel_settings = panel.settings()
+    panel_settings.set('EchoCommand', True)
+    panel.run_command('insert', {'characters': text,
+                                 'force': False,
+                                 'scroll_to_end': True})
 
 
 def echo_current_line_in_view(view, window):
@@ -152,45 +151,27 @@ class OutputHandler:
                 self.diag_view.run_command('move_to', {'to': 'eof'})
 
 
-def get_cmd_dia_views(_, window):
+def get_views(_, window):
     existing_cmd_view = [view for view in window.views() if view.name() == CMD_OUT_VIEW_NAME]
-    cmd_out_view = existing_cmd_view[0] if existing_cmd_view else new_file(window, CMD_OUT_VIEW_NAME, 1, 0)
+    cmd = existing_cmd_view[0] if existing_cmd_view else new_file(window, CMD_OUT_VIEW_NAME, 1, 0)
 
     existing_dia_view = [view for view in window.views() if view.name() == DIAG_OUT_VIEW_NAME]
-    dia_out_view = existing_dia_view[0] if existing_dia_view else new_file(window, DIAG_OUT_VIEW_NAME, 2, 0)
+    dia = existing_dia_view[0] if existing_dia_view else new_file(window, DIAG_OUT_VIEW_NAME, 2, 0)
 
-    return cmd_out_view, dia_out_view
+    return cmd, dia
+
+
+def erase_views(view, window):
+    cmd_out_view, dia_out_view = get_views(view, window)
+    erase(cmd_out_view)
+    erase(dia_out_view)
 
 
 def execute_current_line_in_view(view, window, current_line):
-    cmd_out_view, dia_out_view = get_cmd_dia_views(view, window)
-
-    if "__clear__" in current_line:
-        print('Will clear both')
-        erase(cmd_out_view)
-        erase(dia_out_view)
-    elif "__clear1__" in current_line:
-        erase(cmd_out_view)
-    elif "__clear2__" in current_line:
-        erase(dia_out_view)
-    else:
-        output_handler = OutputHandler(current_line, cmd_out_view, dia_out_view, window)
-        executor.async_execute_string(current_line, output_handler.process)
-        window.focus_view(view)
-
-
-class EchoCommand(sublime_plugin.TextCommand):
-    cmd_name = to_snake_case('EchoCommand')
-    pnl_name = 'output.' + cmd_name
-
-    def run(self, edit, output=None):
-        view, window = get_active_view_and_window()
-        if output == 'panel':
-            echo_current_line_in_panel(view, window)
-        elif output == 'file':
-            echo_current_line_in_view(view, window)
-        else:
-            pass
+    cmd_out_view, dia_out_view = get_views(view, window)
+    output_handler = OutputHandler(current_line, cmd_out_view, dia_out_view, window)
+    executor.async_execute_string(current_line, output_handler.process)
+    window.focus_view(view)
 
 
 def to_epoc(numeric_word):
@@ -208,19 +189,16 @@ class MyShellCommand(sublime_plugin.TextCommand):
 
     def run(self, edit, output=None):
         view, window = get_active_view_and_window()
-        cmd_out_view, dia_out_view = get_cmd_dia_views(view, window)
         current_line = get_active_view_line(view, window)
         word = get_active_view_word(view, window)
         selected = get_active_view_selected(view, window)
         if word is not None and word.isnumeric():
             if to_epoc(word) is not None:
-                cmd_out_view.run_command('append', {'characters': "{} - {}\n".format(word, to_epoc(word))})
-                cmd_out_view.run_command('move_to', {'to': 'eof'})
-            return
-        if selected is not None:
-            cmd_out_view.run_command('append', {'characters': "{} - {}\n".format(selected, datetime.strptime(selected, fmt).timestamp())})
-            cmd_out_view.run_command('move_to', {'to': 'eof'})
-            return
-        if output == 'file' and current_line is not None:
+                show_in_panel(view, window, "{} - {}\n".format(word, to_epoc(word)))
+        elif selected is not None:
+            show_in_panel(view, window, "{} - {}\n".format(selected, datetime.strptime(selected, fmt).timestamp()))
+        elif "__clear__" in current_line:
+            erase_views(view, window)
+        elif current_line is not None:
             execute_current_line_in_view(view, window, current_line)
             return
