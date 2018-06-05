@@ -6,6 +6,9 @@ from datetime import datetime
 
 from . import call_cmd
 
+# print(sys.version)
+fmt = "%Y-%m-%dT%H:%M:%S.%fZ"
+
 line_break = "-" * 80 + "\n"
 first_cap_re = re.compile('(.)([A-Z][a-z]+)')
 all_cap_re = re.compile('([a-z0-9])([A-Z])')
@@ -63,12 +66,30 @@ def get_active_view_and_window():
 
 
 def get_active_view_line(view, _):
+    # print(list(view.sel()))
     regions = [region for region in view.sel() if region.empty()]
     region = regions[0] if regions else None
     if region is not None:
         line = view.line(region)
         line_contents = view.substr(line)
         return line_contents
+
+
+def get_active_view_word(view, _):
+    # print(list(view.sel()))
+    regions = [region for region in view.sel() if region.empty()]
+    region = regions[0] if regions else None
+    if region is not None:
+        word = view.word(region)
+        word_contents = view.substr(word)
+        return word_contents
+
+
+def get_active_view_selected(view, _):
+    # print(list(view.sel()))
+    regions = [region for region in view.sel() if not region.empty()]
+    region = regions[0] if regions else None
+    return view.substr(region) if region else None
 
 
 def echo_current_line_in_panel(view, window):
@@ -126,7 +147,8 @@ class OutputHandler:
                 pod_desc_cmd = "kubectl describe pod {} {}\n".format(pod, self.kubectl_get_pod_namespace)
                 pod_sh_cmd = "kubectl exec -it {} bash {}\n".format(pod, self.kubectl_get_pod_namespace)
                 pod_yaml_cmd = "kubectl get pod {} {} -o yaml\n\n".format(pod, self.kubectl_get_pod_namespace)
-                self.diag_view.run_command('append', {'characters': pod_log_cmd + pod_del_cmd + pod_desc_cmd + pod_sh_cmd + pod_yaml_cmd })
+                self.diag_view.run_command('append', {
+                    'characters': pod_log_cmd + pod_del_cmd + pod_desc_cmd + pod_sh_cmd + pod_yaml_cmd})
                 self.diag_view.run_command('move_to', {'to': 'eof'})
 
 
@@ -175,3 +197,19 @@ class MyShellCommand(sublime_plugin.TextCommand):
         view, window = get_active_view_and_window()
         if output == 'file':
             execute_current_line_in_view(view, window)
+
+
+class MyEpoc(sublime_plugin.TextCommand):
+    def run(self, edit, output=None):
+        view, window = get_active_view_and_window()
+        word = get_active_view_word(view, window)
+        selected = get_active_view_selected(view, window)
+        if word is not None and word.isnumeric():
+            if len(word) == 10:
+                print(datetime.utcfromtimestamp(float(word)).strftime(fmt))
+            elif len(word) == 13:
+                print(datetime.utcfromtimestamp(float(word) / 1000).strftime(fmt))
+            elif len(word) == 16:
+                print(datetime.utcfromtimestamp(float(word) / 1000000).strftime(fmt))
+        if selected is not None:
+            print(datetime.strptime(selected, fmt).timestamp())
