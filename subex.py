@@ -181,7 +181,13 @@ def to_epoc(numeric_word):
         return datetime.utcfromtimestamp(float(numeric_word) / 1000).strftime(fmt)
     elif len(numeric_word) == 16:
         return datetime.utcfromtimestamp(float(numeric_word) / 1000000).strftime(fmt)
-    return None
+
+
+def try_parse_date(string):
+    try:
+        return datetime.strptime(string, fmt).timestamp()
+    except ValueError:
+        pass
 
 
 class MyShellCommand(sublime_plugin.TextCommand):
@@ -196,9 +202,12 @@ class MyShellCommand(sublime_plugin.TextCommand):
             if to_epoc(word) is not None:
                 show_in_panel(view, window, "{} - {}\n".format(word, to_epoc(word)))
         elif selected is not None:
-            show_in_panel(view, window, "{} - {}\n".format(selected, datetime.strptime(selected, fmt).timestamp()))
-        elif "__clear__" in current_line:
+            timestamp = try_parse_date(selected)
+            if timestamp is not None:
+                show_in_panel(view, window, "{} - {}\n".format(selected, timestamp))
+            else:
+                show_in_panel(view, window, "Can not parse {}\n".format(selected))
+        elif "__clear__" == current_line:
             erase_views(view, window)
         elif current_line is not None:
             execute_current_line_in_view(view, window, current_line)
-            return
