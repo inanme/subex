@@ -24,9 +24,9 @@ class Executor:
 
     def stop(self):
         self.done = True
-        self.async_execute_string("terminate", lambda: print("done"))
+        self.async_execute("terminate", lambda: print("done"))
 
-    def async_execute_string(self, command, output_handler):
+    def async_execute(self, command: str, output_handler):
         stripped_command = command.strip()
         if stripped_command:
             self.commands.put((stripped_command, output_handler))
@@ -73,13 +73,12 @@ class Executor:
         finally:
             self.commands.task_done()
 
-
 # from time import sleep
 # c = Executor()
 # c.start()
-# c.async_execute_string("ls", lambda output: print("1>>>" + output))
-# c.async_execute_string("ls -ltr", lambda output: print("2>>>" + output))
-# c.async_execute_string("ls -ltrh", lambda output: print("3>>>" + output))
+# c.async_execute("ls", lambda output: print("1>>>" + output))
+# c.async_execute("ls -ltr", lambda output: print("2>>>" + output))
+# c.async_execute("ls -ltrh", lambda output: print("3>>>" + output))
 #
 # sleep(10)
 # c.stop()

@@ -68,29 +68,17 @@ def get_active_view_and_window():
 
 def get_active_view_line(view, _):
     # print(list(view.sel()))
-    regions = [region for region in view.sel() if region.empty()]
-    region = regions[0] if regions else None
-    if region is not None:
-        line = view.line(region)
-        line_contents = view.substr(line)
-        return line_contents
+    return [view.substr(view.line(region)) for region in view.sel() if region.empty()]
 
 
 def get_active_view_word(view, _):
     # print(list(view.sel()))
-    regions = [region for region in view.sel() if region.empty()]
-    region = regions[0] if regions else None
-    if region is not None:
-        word = view.word(region)
-        word_contents = view.substr(word)
-        return word_contents
+    return [view.substr(view.word(region)) for region in view.sel() if region.empty()]
 
 
 def get_active_view_selected(view, _):
     # print(list(view.sel()))
-    regions = [region for region in view.sel() if not region.empty()]
-    region = regions[0] if regions else None
-    return view.substr(region) if region else None
+    return [view.substr(region) for region in view.sel() if not region.empty()]
 
 
 def show_in_panel(_, window, text):
@@ -102,17 +90,6 @@ def show_in_panel(_, window, text):
     panel.run_command('insert', {'characters': text,
                                  'force': False,
                                  'scroll_to_end': True})
-
-
-def echo_current_line_in_view(view, window):
-    current_line = get_active_view_line(view, window)
-    if current_line is not None:
-        existing_view = [view for view in window.views() if view.name() == CMD_OUT_VIEW_NAME]
-        output_view = existing_view[0] if existing_view else new_file(window, CMD_OUT_VIEW_NAME, 1, 0)
-        output_view.run_command('insert', {'characters': decorate_string(current_line),
-                                           'force': False,
-                                           'scroll_to_end': True})
-        window.focus_view(view)
 
 
 # http://docs.sublimetext.info/en/latest/reference/commands.html
@@ -170,11 +147,11 @@ def erase_views(view, window):
 def execute_current_line_in_view(view, window, current_line):
     cmd_out_view, dia_out_view = get_views(view, window)
     output_handler = OutputHandler(current_line, cmd_out_view, dia_out_view, window)
-    executor.async_execute_string(current_line, output_handler.process)
+    executor.async_execute(current_line, output_handler.process)
     window.focus_view(view)
 
 
-def to_epoc(numeric_word):
+def to_epoc(numeric_word: str):
     if len(numeric_word) == 10:
         return datetime.utcfromtimestamp(float(numeric_word)).strftime(fmt)
     elif len(numeric_word) == 13:
@@ -190,24 +167,31 @@ def try_parse_date(string):
         pass
 
 
+clear_views = "__clear__"
+
+
 class MyShellCommand(sublime_plugin.TextCommand):
     executor.start()
 
     def run(self, edit, output=None):
         view, window = get_active_view_and_window()
-        current_line = get_active_view_line(view, window)
-        word = get_active_view_word(view, window)
-        selected = get_active_view_selected(view, window)
-        if word is not None and word.isnumeric():
-            if to_epoc(word) is not None:
+        lines = get_active_view_line(view, window)
+        words = get_active_view_word(view, window)
+        word = next((word for word in words if word.isnumeric()), None)
+        selecteds = get_active_view_selected(view, window)
+        if word:
+            if to_epoc(word):
                 show_in_panel(view, window, "{} - {}\n".format(word, to_epoc(word)))
-        elif selected is not None:
+        elif selecteds:
+            selected, *_ = selecteds
             timestamp = try_parse_date(selected)
-            if timestamp is not None:
+            if timestamp:
                 show_in_panel(view, window, "{} - {}\n".format(selected, timestamp))
             else:
                 show_in_panel(view, window, "Can not parse {}\n".format(selected))
-        elif "__clear__" == current_line:
-            erase_views(view, window)
-        elif current_line is not None:
-            execute_current_line_in_view(view, window, current_line)
+        elif lines:
+            if clear_views in lines:
+                erase_views(view, window)
+                lines.remove(clear_views)
+            for current_line in lines:
+                execute_current_line_in_view(view, window, current_line)
