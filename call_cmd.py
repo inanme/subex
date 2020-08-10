@@ -3,6 +3,7 @@ from threading import Thread
 from queue import Queue, Empty
 from select import select
 from datetime import datetime
+import os
 
 
 class ExecutionException(Exception):
@@ -42,15 +43,20 @@ class Executor:
             except Empty:
                 pass
 
+
+    my_env = os.environ.copy()
+    my_env.update({"PATH": "/usr/local/bin"})
+
     def execute_command(self, command, output_handler):
         started = datetime.now()
         process_timeout = 10
         try:
             proc = Popen(["-c", command],
-                         executable="bash",
+                         executable="/usr/local/bin/bash",
                          stdout=PIPE,
                          stderr=STDOUT,
-                         shell=True)
+                         shell=True,
+                         env=Executor.my_env)
 
             while proc.poll() is None:
                 (output_ready, _, _) = select([proc.stdout], [], [], process_timeout)
